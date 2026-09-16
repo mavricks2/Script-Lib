@@ -5,6 +5,7 @@
     ║  Features:                                                                ║
     ║  ✓ Customizable Window (Width: 600px, Height: 400-500px)                 ║
     ║  ✓ Tabs with Lucide Icons (rbxassetid support)                           ║
+    ║  ✓ Dynamic tab width based on text length                                ║
     ║  ✓ Toggle Switches with animations                                       ║
     ║  ✓ Sliders with value input                                              ║
     ║  ✓ Textboxes with callbacks                                              ║
@@ -145,7 +146,7 @@ function LibraryUI:CreateWindow(config)
     end
 
     ----------------------------------------------------------------
-    -- TAB BAR
+    -- TAB BAR - DYNAMIC WIDTH SUPPORT
     ----------------------------------------------------------------
     local TabBar = Instance.new("Frame")
     TabBar.Name = "TabBar"
@@ -246,41 +247,50 @@ function LibraryUI:CreateWindow(config)
             TweenService:Create(tabBtn.label, TweenInfo.new(0.2), {
                 TextColor3 = (tabName == name) and THEME.Text or THEME.SubText
             }):Play()
-            TweenService:Create(tabBtn.icon, TweenInfo.new(0.2), {
-                ImageColor3 = (tabName == name) and THEME.Text or THEME.SubText
-            }):Play()
+            if tabBtn.icon then
+                TweenService:Create(tabBtn.icon, TweenInfo.new(0.2), {
+                    ImageColor3 = (tabName == name) and THEME.Text or THEME.SubText
+                }):Play()
+            end
         end
     end
 
     local windowApi = {}
 
     function windowApi:AddTab(tabName, iconId)
-        iconId = iconId or "rbxassetid://7072706977"
         local page = createPage(tabName)
         
         local tabIndex = #tabOrder + 1
         local TabButton = Instance.new("Frame")
         TabButton.Name = tabName .. "Tab"
-        TabButton.Size = UDim2.new(0, 75, 0, 28)
-        TabButton.Position = UDim2.new(0, 10 + (tabIndex - 1) * 82, 0, 6)
+        TabButton.Size = UDim2.new(0, 100, 0, 30) -- Will be adjusted based on text
         TabButton.BackgroundTransparency = 1
         TabButton.Parent = TabBar
         TabButton.ZIndex = 2
 
         -- Tab Icon
-        local tabIcon = Instance.new("ImageLabel")
-        tabIcon.BackgroundTransparency = 1
-        tabIcon.Size = UDim2.new(0, 16, 0, 16)
-        tabIcon.Position = UDim2.new(0, 8, 0.5, -8)
-        tabIcon.Image = iconId
-        tabIcon.ImageColor3 = THEME.SubText
-        tabIcon.Parent = TabButton
+        local tabIcon = nil
+        local tabLabelPosition = 0
+        
+        if iconId then
+            tabIcon = Instance.new("ImageLabel")
+            tabIcon.BackgroundTransparency = 1
+            tabIcon.Size = UDim2.new(0, 16, 0, 16)
+            tabIcon.Position = UDim2.new(0, 8, 0.5, -8)
+            tabIcon.Image = iconId
+            tabIcon.ImageColor3 = THEME.SubText
+            tabIcon.Parent = TabButton
+            tabLabelPosition = 28
+        else
+            tabLabelPosition = 8
+        end
 
         -- Tab Label
         local tabLabel = Instance.new("TextLabel")
         tabLabel.BackgroundTransparency = 1
-        tabLabel.Position = UDim2.new(0, 28, 0, 0)
-        tabLabel.Size = UDim2.new(1, -30, 1, 0)
+        tabLabel.Position = UDim2.new(0, tabLabelPosition, 0.5, 0)
+        tabLabel.AnchorPoint = Vector2.new(0, 0.5)
+        tabLabel.Size = UDim2.new(1, -tabLabelPosition - 8, 1, 0)
         tabLabel.Font = Enum.Font.GothamMedium
         tabLabel.Text = tabName
         tabLabel.TextSize = 12
@@ -288,14 +298,36 @@ function LibraryUI:CreateWindow(config)
         tabLabel.TextXAlignment = Enum.TextXAlignment.Left
         tabLabel.Parent = TabButton
 
+        -- Calculate tab width based on text
+        task.wait(0.01) -- Wait for text to render
+        local textBounds = tabLabel.TextBounds.X
+        local tabWidth = 0
+        
+        if iconId then
+            -- With icon: TextBounds + 52 pixels (icon + padding)
+            tabWidth = textBounds + 52
+        else
+            -- Without icon: TextBounds + 30 pixels
+            tabWidth = textBounds + 30
+        end
+        
+        TabButton.Size = UDim2.new(0, tabWidth, 0, 30)
+
         local tabClickArea = Instance.new("TextButton")
         tabClickArea.BackgroundTransparency = 1
         tabClickArea.Size = UDim2.new(1, 0, 1, 0)
         tabClickArea.Text = ""
         tabClickArea.Parent = TabButton
 
+        -- Calculate X position based on previous tabs
+        local xPos = 10
+        for i = 1, tabIndex - 1 do
+            xPos = xPos + tabPositions[tabOrder[i]].width + 4 -- 4px gap between tabs
+        end
+
+        TabButton.Position = UDim2.new(0, xPos, 0, 5)
         tabButtons[tabName] = { button = TabButton, icon = tabIcon, label = tabLabel }
-        tabPositions[tabName] = { x = 10 + (tabIndex - 1) * 82, width = 75 }
+        tabPositions[tabName] = { x = xPos, width = tabWidth }
         table.insert(tabOrder, tabName)
 
         tabClickArea.MouseButton1Click:Connect(function()
@@ -308,9 +340,11 @@ function LibraryUI:CreateWindow(config)
                 TweenService:Create(tabLabel, TweenInfo.new(0.2), {
                     TextColor3 = THEME.Text
                 }):Play()
-                TweenService:Create(tabIcon, TweenInfo.new(0.2), {
-                    ImageColor3 = THEME.Text
-                }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.2), {
+                        ImageColor3 = THEME.Text
+                    }):Play()
+                end
             end
         end)
 
@@ -319,9 +353,11 @@ function LibraryUI:CreateWindow(config)
                 TweenService:Create(tabLabel, TweenInfo.new(0.2), {
                     TextColor3 = THEME.SubText
                 }):Play()
-                TweenService:Create(tabIcon, TweenInfo.new(0.2), {
-                    ImageColor3 = THEME.SubText
-                }):Play()
+                if tabIcon then
+                    TweenService:Create(tabIcon, TweenInfo.new(0.2), {
+                        ImageColor3 = THEME.SubText
+                    }):Play()
+                end
             end
         end)
 
