@@ -6,13 +6,16 @@
     ║  ✓ Customizable Window (Width: 600px, Height: 400-500px)                 ║
     ║  ✓ Tabs with Lucide Icons (rbxassetid support)                           ║
     ║  ✓ Dynamic tab width based on text length                                ║
+    ║  ✓ Horizontal scrollable tabs                                            ║
     ║  ✓ Toggle Switches with animations                                       ║
     ║  ✓ Sliders with value input                                              ║
     ║  ✓ Textboxes with callbacks                                              ║
     ║  ✓ Buttons with hover effects                                            ║
     ║  ✓ StatusBox with dynamic sizing                                         ║
     ║  ✓ Separators                                                            ║
+    ║  ✓ Smooth Dropdowns                                                      ║
     ║  ✓ Draggable Window                                                      ║
+    ║  ✓ Show/Hide Toggle Button                                               ║
     ║  ✓ Smooth Animations & Transitions                                       ║
     ║                                                                           ║
     ║  Usage:                                                                   ║
@@ -146,20 +149,30 @@ function LibraryUI:CreateWindow(config)
     end
 
     ----------------------------------------------------------------
-    -- TAB BAR - DYNAMIC WIDTH SUPPORT
+    -- TAB BAR - HORIZONTAL SCROLLABLE
     ----------------------------------------------------------------
-    local TabBar = Instance.new("Frame")
-    TabBar.Name = "TabBar"
-    TabBar.Size = UDim2.new(1, -20, 0, 40)
-    TabBar.Position = UDim2.new(0, 10, 0, 50)
-    TabBar.BackgroundColor3 = THEME.Panel
-    TabBar.BorderSizePixel = 0
-    TabBar.ClipsDescendants = true
-    TabBar.Parent = MainWindow
+    local TabBarContainer = Instance.new("Frame")
+    TabBarContainer.Name = "TabBarContainer"
+    TabBarContainer.Size = UDim2.new(1, -20, 0, 40)
+    TabBarContainer.Position = UDim2.new(0, 10, 0, 50)
+    TabBarContainer.BackgroundColor3 = THEME.Panel
+    TabBarContainer.BorderSizePixel = 0
+    TabBarContainer.ClipsDescendants = true
+    TabBarContainer.Parent = MainWindow
 
     local tabBarCorner = Instance.new("UICorner")
     tabBarCorner.CornerRadius = UDim.new(0, 10)
-    tabBarCorner.Parent = TabBar
+    tabBarCorner.Parent = TabBarContainer
+
+    local TabBar = Instance.new("ScrollingFrame")
+    TabBar.Name = "TabBar"
+    TabBar.Size = UDim2.new(1, 0, 1, 0)
+    TabBar.BackgroundTransparency = 1
+    TabBar.BorderSizePixel = 0
+    TabBar.ScrollBarThickness = 0
+    TabBar.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabBar.AutomaticCanvasSize = Enum.AutomaticSize.X
+    TabBar.Parent = TabBarContainer
 
     local TabHighlight = Instance.new("Frame")
     TabHighlight.Name = "TabHighlight"
@@ -189,6 +202,69 @@ function LibraryUI:CreateWindow(config)
     ContentArea.BackgroundTransparency = 1
     ContentArea.Parent = MainWindow
     ContentArea.ClipsDescendants = true
+
+    ----------------------------------------------------------------
+    -- SHOW/HIDE BUTTON
+    ----------------------------------------------------------------
+    local ShowHideGui = Instance.new("ScreenGui")
+    ShowHideGui.Name = "ShowHideGui"
+    ShowHideGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ShowHideGui.ResetOnSpawn = false
+    ShowHideGui.Parent = game:GetService("CoreGui")
+
+    local ShowHideButton = Instance.new("ImageButton")
+    ShowHideButton.Name = "ShowHideButton"
+    ShowHideButton.Size = UDim2.new(0, 50, 0, 50)
+    ShowHideButton.Position = UDim2.new(0.05, 0, 0.05, 0)
+    ShowHideButton.BackgroundColor3 = THEME.Accent
+    ShowHideButton.Image = "rbxassetid://7072706977"
+    ShowHideButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ShowHideButton.ScaleType = Enum.ScaleType.Fit
+    ShowHideButton.Parent = ShowHideGui
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.Parent = ShowHideButton
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = THEME.Accent
+    btnStroke.Thickness = 1.5
+    btnStroke.Parent = ShowHideButton
+
+    local isWindowVisible = true
+
+    ShowHideButton.MouseButton1Click:Connect(function()
+        isWindowVisible = not isWindowVisible
+        
+        if isWindowVisible then
+            MainWindow.Visible = true
+            TweenService:Create(MainWindow, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0
+            }):Play()
+            TweenService:Create(ShowHideButton, TweenInfo.new(0.3), {
+                BackgroundColor3 = THEME.Accent
+            }):Play()
+            ShowHideButton.Image = "rbxassetid://7072706977"
+        else
+            MainWindow.Visible = false
+            TweenService:Create(ShowHideButton, TweenInfo.new(0.3), {
+                BackgroundColor3 = THEME.Dark
+            }):Play()
+            ShowHideButton.Image = "rbxassetid://7072711839"
+        end
+    end)
+
+    ShowHideButton.MouseEnter:Connect(function()
+        TweenService:Create(ShowHideButton, TweenInfo.new(0.2), {
+            Size = UDim2.new(0, 55, 0, 55)
+        }):Play()
+    end)
+
+    ShowHideButton.MouseLeave:Connect(function()
+        TweenService:Create(ShowHideButton, TweenInfo.new(0.2), {
+            Size = UDim2.new(0, 50, 0, 50)
+        }):Play()
+    end)
 
     ----------------------------------------------------------------
     -- LIBRARY METHODS
@@ -253,6 +329,23 @@ function LibraryUI:CreateWindow(config)
                 }):Play()
             end
         end
+
+        -- Auto-scroll to active tab
+        task.defer(function()
+            local btnAbsPos = tabButtons[name].button.AbsolutePosition.X
+            local btnAbsSize = tabButtons[name].button.AbsoluteSize.X
+            local containerAbsPos = TabBarContainer.AbsolutePosition.X
+            local containerSize = TabBarContainer.AbsoluteSize.X
+
+            local btnRelativePos = btnAbsPos - containerAbsPos
+            local btnRelativeEnd = btnRelativePos + btnAbsSize
+
+            if btnRelativePos < TabBar.CanvasPosition.X then
+                TabBar.CanvasPosition = Vector2.new(math.max(0, btnRelativePos - 10), 0)
+            elseif btnRelativeEnd > TabBar.CanvasPosition.X + containerSize then
+                TabBar.CanvasPosition = Vector2.new(btnRelativeEnd - containerSize + 10, 0)
+            end
+        end)
     end
 
     local windowApi = {}
@@ -263,10 +356,10 @@ function LibraryUI:CreateWindow(config)
         local tabIndex = #tabOrder + 1
         local TabButton = Instance.new("Frame")
         TabButton.Name = tabName .. "Tab"
-        TabButton.Size = UDim2.new(0, 100, 0, 30) -- Will be adjusted based on text
+        TabButton.Size = UDim2.new(0, 100, 0, 30)
         TabButton.BackgroundTransparency = 1
-        TabButton.Parent = TabBar
         TabButton.ZIndex = 2
+        TabButton.Parent = TabBar
 
         -- Tab Icon
         local tabIcon = nil
@@ -299,15 +392,13 @@ function LibraryUI:CreateWindow(config)
         tabLabel.Parent = TabButton
 
         -- Calculate tab width based on text
-        task.wait(0.01) -- Wait for text to render
+        task.wait(0.01)
         local textBounds = tabLabel.TextBounds.X
         local tabWidth = 0
         
         if iconId then
-            -- With icon: TextBounds + 52 pixels (icon + padding)
             tabWidth = textBounds + 52
         else
-            -- Without icon: TextBounds + 30 pixels
             tabWidth = textBounds + 30
         end
         
@@ -319,10 +410,9 @@ function LibraryUI:CreateWindow(config)
         tabClickArea.Text = ""
         tabClickArea.Parent = TabButton
 
-        -- Calculate X position based on previous tabs
         local xPos = 10
         for i = 1, tabIndex - 1 do
-            xPos = xPos + tabPositions[tabOrder[i]].width + 4 -- 4px gap between tabs
+            xPos = xPos + tabPositions[tabOrder[i]].width + 4
         end
 
         TabButton.Position = UDim2.new(0, xPos, 0, 5)
@@ -334,7 +424,6 @@ function LibraryUI:CreateWindow(config)
             selectTab(tabName)
         end)
 
-        -- Update hover effects
         tabClickArea.MouseEnter:Connect(function()
             if activeTab ~= tabName then
                 TweenService:Create(tabLabel, TweenInfo.new(0.2), {
@@ -656,6 +745,194 @@ function LibraryUI:CreateWindow(config)
             end
             
             return textboxApi
+        end
+
+        ----------------------------------------------------------------
+        -- DROPDOWN COMPONENT (SMOOTH)
+        ----------------------------------------------------------------
+        function pageApi:AddDropdown(labelText, options, defaultValue, onChange)
+            local frame = Instance.new("Frame")
+            frame.Parent = page
+            frame.Name = "Dropdown"
+            frame.Size = UDim2.new(1, 0, 0, 40)
+            frame.BackgroundTransparency = 1
+
+            local dropdownButton = Instance.new("Frame")
+            dropdownButton.Name = "DropdownButton"
+            dropdownButton.Parent = frame
+            dropdownButton.Size = UDim2.new(1, 0, 0, 40)
+            dropdownButton.BackgroundColor3 = THEME.Panel
+            dropdownButton.BorderSizePixel = 0
+
+            local dropdownCorner = Instance.new("UICorner")
+            dropdownCorner.CornerRadius = UDim.new(0, 8)
+            dropdownCorner.Parent = dropdownButton
+
+            local label = Instance.new("TextLabel")
+            label.Parent = dropdownButton
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.new(0, 14, 0, 0)
+            label.Size = UDim2.new(1, -90, 1, 0)
+            label.Font = Enum.Font.GothamSemibold
+            label.Text = labelText
+            label.TextColor3 = THEME.Text
+            label.TextSize = 13
+            label.TextXAlignment = Enum.TextXAlignment.Left
+
+            local valueLabel = Instance.new("TextLabel")
+            valueLabel.Parent = dropdownButton
+            valueLabel.BackgroundTransparency = 1
+            valueLabel.AnchorPoint = Vector2.new(1, 0.5)
+            valueLabel.Position = UDim2.new(1, -30, 0.5, 0)
+            valueLabel.Size = UDim2.new(0, 60, 1, 0)
+            valueLabel.Font = Enum.Font.GothamMedium
+            valueLabel.Text = defaultValue or options[1]
+            valueLabel.TextColor3 = THEME.Accent
+            valueLabel.TextSize = 12
+            valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+            local dropdownArrow = Instance.new("TextLabel")
+            dropdownArrow.Parent = dropdownButton
+            dropdownArrow.BackgroundTransparency = 1
+            dropdownArrow.AnchorPoint = Vector2.new(0.5, 0.5)
+            dropdownArrow.Position = UDim2.new(1, -10, 0.5, 0)
+            dropdownArrow.Size = UDim2.new(0, 15, 0, 15)
+            dropdownArrow.Font = Enum.Font.GothamMedium
+            dropdownArrow.Text = "▼"
+            dropdownArrow.TextColor3 = THEME.Accent
+            dropdownArrow.TextSize = 12
+
+            local dropdownMenu = Instance.new("Frame")
+            dropdownMenu.Name = "DropdownMenu"
+            dropdownMenu.Parent = frame
+            dropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+            dropdownMenu.Position = UDim2.new(0, 0, 1, 0)
+            dropdownMenu.BackgroundColor3 = THEME.Panel
+            dropdownMenu.BorderSizePixel = 0
+            dropdownMenu.ClipsDescendants = true
+            dropdownMenu.ZIndex = 100
+
+            local menuCorner = Instance.new("UICorner")
+            menuCorner.CornerRadius = UDim.new(0, 8)
+            menuCorner.Parent = dropdownMenu
+
+            local menuStroke = Instance.new("UIStroke")
+            menuStroke.Color = THEME.Accent
+            menuStroke.Thickness = 1
+            menuStroke.Transparency = 0.3
+            menuStroke.Parent = dropdownMenu
+
+            local menuLayout = Instance.new("UIListLayout")
+            menuLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            menuLayout.Padding = UDim.new(0, 2)
+            menuLayout.Parent = dropdownMenu
+
+            local menuPadding = Instance.new("UIPadding")
+            menuPadding.PaddingLeft = UDim.new(0, 4)
+            menuPadding.PaddingRight = UDim.new(0, 4)
+            menuPadding.PaddingTop = UDim.new(0, 4)
+            menuPadding.PaddingBottom = UDim.new(0, 4)
+            menuPadding.Parent = dropdownMenu
+
+            local isOpen = false
+            local currentSelected = defaultValue or options[1]
+
+            local function createMenuItem(optionText)
+                local menuItem = Instance.new("TextButton")
+                menuItem.Name = "MenuItem"
+                menuItem.Size = UDim2.new(1, 0, 0, 30)
+                menuItem.BackgroundColor3 = THEME.Dark
+                menuItem.BorderSizePixel = 0
+                menuItem.Font = Enum.Font.GothamMedium
+                menuItem.Text = optionText
+                menuItem.TextColor3 = THEME.Text
+                menuItem.TextSize = 12
+                menuItem.Parent = dropdownMenu
+
+                local itemCorner = Instance.new("UICorner")
+                itemCorner.CornerRadius = UDim.new(0, 6)
+                itemCorner.Parent = menuItem
+
+                menuItem.MouseEnter:Connect(function()
+                    TweenService:Create(menuItem, TweenInfo.new(0.2), {
+                        BackgroundColor3 = THEME.Accent
+                    }):Play()
+                    TweenService:Create(menuItem, TweenInfo.new(0.2), {
+                        TextColor3 = THEME.Text
+                    }):Play()
+                end)
+
+                menuItem.MouseLeave:Connect(function()
+                    TweenService:Create(menuItem, TweenInfo.new(0.2), {
+                        BackgroundColor3 = THEME.Dark
+                    }):Play()
+                end)
+
+                menuItem.MouseButton1Click:Connect(function()
+                    currentSelected = optionText
+                    valueLabel.Text = optionText
+                    
+                    -- Close dropdown
+                    isOpen = false
+                    TweenService:Create(dropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 0)
+                    }):Play()
+
+                    TweenService:Create(dropdownArrow, TweenInfo.new(0.3), {
+                        Rotation = 0
+                    }):Play()
+
+                    if onChange then
+                        onChange(optionText)
+                    end
+                end)
+            end
+
+            for _, option in ipairs(options) do
+                createMenuItem(option)
+            end
+
+            local buttonClickArea = Instance.new("TextButton")
+            buttonClickArea.BackgroundTransparency = 1
+            buttonClickArea.Size = UDim2.new(1, 0, 1, 0)
+            buttonClickArea.Text = ""
+            buttonClickArea.Parent = dropdownButton
+
+            buttonClickArea.MouseButton1Click:Connect(function()
+                isOpen = not isOpen
+
+                if isOpen then
+                    -- Open dropdown
+                    TweenService:Create(dropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, (#options * 32) + 12)
+                    }):Play()
+
+                    TweenService:Create(dropdownArrow, TweenInfo.new(0.3), {
+                        Rotation = 180
+                    }):Play()
+                else
+                    -- Close dropdown
+                    TweenService:Create(dropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 0)
+                    }):Play()
+
+                    TweenService:Create(dropdownArrow, TweenInfo.new(0.3), {
+                        Rotation = 0
+                    }):Play()
+                end
+            end)
+
+            local dropdownApi = {}
+            function dropdownApi:SetValue(value)
+                currentSelected = value
+                valueLabel.Text = value
+                if onChange then onChange(value) end
+            end
+            function dropdownApi:GetValue()
+                return currentSelected
+            end
+            
+            return dropdownApi
         end
 
         ----------------------------------------------------------------
