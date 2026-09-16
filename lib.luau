@@ -13,7 +13,7 @@
     ║  ✓ Buttons with hover effects                                            ║
     ║  ✓ StatusBox with dynamic sizing                                         ║
     ║  ✓ Separators                                                            ║
-    ║  ✓ Smooth Dropdowns                                                      ║
+    ║  ✓ Smooth Dropdowns with expanding elements                              ║
     ║  ✓ Draggable Window                                                      ║
     ║  ✓ Show/Hide Toggle Button                                               ║
     ║  ✓ Smooth Animations & Transitions                                       ║
@@ -748,21 +748,23 @@ function LibraryUI:CreateWindow(config)
         end
 
         ----------------------------------------------------------------
-        -- DROPDOWN COMPONENT (SMOOTH)
+        -- DROPDOWN COMPONENT (SMOOTH) - Elements push down
         ----------------------------------------------------------------
         function pageApi:AddDropdown(labelText, options, defaultValue, onChange)
-            local frame = Instance.new("Frame")
-            frame.Parent = page
-            frame.Name = "Dropdown"
-            frame.Size = UDim2.new(1, 0, 0, 40)
-            frame.BackgroundTransparency = 1
+            local containerFrame = Instance.new("Frame")
+            containerFrame.Parent = page
+            containerFrame.Name = "DropdownContainer"
+            containerFrame.Size = UDim2.new(1, 0, 0, 40)
+            containerFrame.BackgroundTransparency = 1
+            containerFrame.ClipsDescendants = false
 
             local dropdownButton = Instance.new("Frame")
             dropdownButton.Name = "DropdownButton"
-            dropdownButton.Parent = frame
+            dropdownButton.Parent = containerFrame
             dropdownButton.Size = UDim2.new(1, 0, 0, 40)
             dropdownButton.BackgroundColor3 = THEME.Panel
             dropdownButton.BorderSizePixel = 0
+            dropdownButton.ZIndex = 10
 
             local dropdownCorner = Instance.new("UICorner")
             dropdownCorner.CornerRadius = UDim.new(0, 8)
@@ -804,13 +806,13 @@ function LibraryUI:CreateWindow(config)
 
             local dropdownMenu = Instance.new("Frame")
             dropdownMenu.Name = "DropdownMenu"
-            dropdownMenu.Parent = frame
+            dropdownMenu.Parent = containerFrame
             dropdownMenu.Size = UDim2.new(1, 0, 0, 0)
             dropdownMenu.Position = UDim2.new(0, 0, 1, 0)
             dropdownMenu.BackgroundColor3 = THEME.Panel
             dropdownMenu.BorderSizePixel = 0
             dropdownMenu.ClipsDescendants = true
-            dropdownMenu.ZIndex = 100
+            dropdownMenu.ZIndex = 9
 
             local menuCorner = Instance.new("UICorner")
             menuCorner.CornerRadius = UDim.new(0, 8)
@@ -848,6 +850,7 @@ function LibraryUI:CreateWindow(config)
                 menuItem.TextColor3 = THEME.Text
                 menuItem.TextSize = 12
                 menuItem.Parent = dropdownMenu
+                menuItem.ZIndex = 9
 
                 local itemCorner = Instance.new("UICorner")
                 itemCorner.CornerRadius = UDim.new(0, 6)
@@ -882,6 +885,11 @@ function LibraryUI:CreateWindow(config)
                         Rotation = 0
                     }):Play()
 
+                    -- Shrink container back to normal
+                    TweenService:Create(containerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 40)
+                    }):Play()
+
                     if onChange then
                         onChange(optionText)
                     end
@@ -897,14 +905,20 @@ function LibraryUI:CreateWindow(config)
             buttonClickArea.Size = UDim2.new(1, 0, 1, 0)
             buttonClickArea.Text = ""
             buttonClickArea.Parent = dropdownButton
+            buttonClickArea.ZIndex = 10
 
             buttonClickArea.MouseButton1Click:Connect(function()
                 isOpen = not isOpen
 
                 if isOpen then
-                    -- Open dropdown
+                    -- Open dropdown - expand container and menu
+                    local menuHeight = (#options * 32) + 12
+                    TweenService:Create(containerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 40 + menuHeight)
+                    }):Play()
+
                     TweenService:Create(dropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        Size = UDim2.new(1, 0, 0, (#options * 32) + 12)
+                        Size = UDim2.new(1, 0, 0, menuHeight)
                     }):Play()
 
                     TweenService:Create(dropdownArrow, TweenInfo.new(0.3), {
@@ -912,6 +926,10 @@ function LibraryUI:CreateWindow(config)
                     }):Play()
                 else
                     -- Close dropdown
+                    TweenService:Create(containerFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                        Size = UDim2.new(1, 0, 0, 40)
+                    }):Play()
+
                     TweenService:Create(dropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                         Size = UDim2.new(1, 0, 0, 0)
                     }):Play()
